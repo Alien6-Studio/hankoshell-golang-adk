@@ -46,9 +46,19 @@ and audience; the ADK does not override themes or realm policy.
 memberships, realm-role CRUD and direct user-role assignments. Use
 `OrganizationClientOptions.AccessToken` to resolve the caller's current token.
 Hanko authorizes every request. Members and roles currently require realm
-administration: implement organization-scoped delegation server-side before
-exposing these operations in products. Never distribute realm-admin credentials
-to application clients.
+administration. Product backends use `NewDelegatedOrganizationClient`, bound to
+one realm, application and root position, with a dedicated organization credential
+from the `AccessToken` callback. It lists approved positions and changes membership
+only for existing root members; the API verifies live group and role boundaries.
+Operator-owned structure and root admission remain separate. Never distribute
+realm-admin credentials to application clients.
+
+`CreateOrganizationDelegation`, `ListOrganizationDelegations` and
+`RevokeOrganizationDelegation` on `IAMClient` manage these credentials. Issuance
+requires an administrator session, an explicit role allowlist and an expiry of
+5 minutes to 24 hours. Keep the returned secret server-side; it cannot call ordinary
+realm-administration endpoints. This requires the matching platform API and does
+not enable interactive active-node selection or agent delegation.
 
 `NewTokenClient` supports client credentials and explicit RFC 8693 exchanges
 (`SubjectToken`, `Audience`, `Scopes`, optional `ActorToken`). Resolve rotating

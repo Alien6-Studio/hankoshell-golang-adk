@@ -1,0 +1,222 @@
+[
+  {
+    "client": "delegated",
+    "operation": "listPositions",
+    "args": [],
+    "method": "GET",
+    "path": "/api/v1/organization-admin/realms/example/applications/product-api/roots/root/positions",
+    "status": 200,
+    "response": {
+      "positions": [
+        {
+          "id": "readers",
+          "title": "Readers",
+          "parent_id": "root",
+          "roles": [
+            "reader"
+          ]
+        }
+      ]
+    },
+    "result": [
+      {
+        "id": "readers",
+        "title": "Readers",
+        "parent_id": "root",
+        "roles": [
+          "reader"
+        ]
+      }
+    ]
+  },
+  {
+    "client": "delegated",
+    "operation": "listMembers",
+    "args": [
+      "readers"
+    ],
+    "method": "GET",
+    "path": "/api/v1/organization-admin/realms/example/applications/product-api/roots/root/positions/readers/members",
+    "status": 200,
+    "response": {
+      "members": [
+        {
+          "position_id": "readers",
+          "realm": "example",
+          "user_id": "alice",
+          "assigned_at": "2026-10-21T12:00:00Z"
+        }
+      ]
+    },
+    "result": [
+      {
+        "position_id": "readers",
+        "realm": "example",
+        "user_id": "alice",
+        "assigned_at": "2026-10-21T12:00:00Z"
+      }
+    ]
+  },
+  {
+    "client": "delegated",
+    "operation": "assignMember",
+    "args": [
+      "readers",
+      "alice"
+    ],
+    "method": "POST",
+    "path": "/api/v1/organization-admin/realms/example/applications/product-api/roots/root/positions/readers/members",
+    "body": {
+      "user_id": "alice"
+    },
+    "status": 204
+  },
+  {
+    "client": "delegated",
+    "operation": "removeMember",
+    "args": [
+      "readers",
+      "alice"
+    ],
+    "method": "DELETE",
+    "path": "/api/v1/organization-admin/realms/example/applications/product-api/roots/root/positions/readers/members/alice",
+    "status": 204
+  },
+  {
+    "client": "management",
+    "operation": "createOrganizationDelegation",
+    "args": [
+      "example",
+      {
+        "root_position_id": "root",
+        "application_id": "product-api",
+        "allowed_roles": [
+          "reader"
+        ],
+        "write_enabled": false,
+        "expires_in_seconds": 3600
+      }
+    ],
+    "method": "POST",
+    "path": "/api/v1/realms/example/org/delegations",
+    "body": {
+      "root_position_id": "root",
+      "application_id": "product-api",
+      "allowed_roles": [
+        "reader"
+      ],
+      "write_enabled": false,
+      "expires_in_seconds": 3600
+    },
+    "status": 201,
+    "response": {
+      "token": "synthetic-credential",
+      "metadata": {
+        "id": "tok_example",
+        "sub": "application:product-api",
+        "kind": "organization",
+        "realm_id": "example",
+        "scopes": [
+          "organization:members:read"
+        ],
+        "created_at": "2026-10-21T12:00:00Z",
+        "expires_at": "2026-10-21T13:00:00Z",
+        "organization": {
+          "root_position_id": "root",
+          "root_group_id": "group-example",
+          "application_id": "product-api",
+          "allowed_roles": [
+            "reader"
+          ]
+        }
+      }
+    },
+    "result": {
+      "token": "synthetic-credential",
+      "metadata": {
+        "id": "tok_example",
+        "sub": "application:product-api",
+        "kind": "organization",
+        "realm_id": "example",
+        "scopes": [
+          "organization:members:read"
+        ],
+        "created_at": "2026-10-21T12:00:00Z",
+        "expires_at": "2026-10-21T13:00:00Z",
+        "organization": {
+          "root_position_id": "root",
+          "root_group_id": "group-example",
+          "application_id": "product-api",
+          "allowed_roles": [
+            "reader"
+          ]
+        }
+      }
+    }
+  },
+  {
+    "client": "management",
+    "operation": "listOrganizationDelegations",
+    "args": [
+      "example"
+    ],
+    "method": "GET",
+    "path": "/api/v1/realms/example/org/delegations",
+    "status": 200,
+    "response": {
+      "delegations": [
+        {
+          "id": "tok_example",
+          "sub": "application:product-api",
+          "kind": "organization",
+          "realm_id": "example",
+          "scopes": [
+            "organization:members:read"
+          ],
+          "created_at": "2026-10-21T12:00:00Z",
+          "expires_at": "2026-10-21T13:00:00Z",
+          "organization": {
+            "root_position_id": "root",
+            "root_group_id": "group-example",
+            "application_id": "product-api",
+            "allowed_roles": [
+              "reader"
+            ]
+          }
+        }
+      ]
+    },
+    "result": [
+      {
+        "id": "tok_example",
+        "sub": "application:product-api",
+        "kind": "organization",
+        "realm_id": "example",
+        "scopes": [
+          "organization:members:read"
+        ],
+        "created_at": "2026-10-21T12:00:00Z",
+        "expires_at": "2026-10-21T13:00:00Z",
+        "organization": {
+          "root_position_id": "root",
+          "root_group_id": "group-example",
+          "application_id": "product-api",
+          "allowed_roles": [
+            "reader"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "client": "management",
+    "operation": "revokeOrganizationDelegation",
+    "args": [
+      "example",
+      "tok_example"
+    ],
+    "method": "DELETE",
+    "path": "/api/v1/realms/example/org/delegations/tok_example",
+    "status": 204
+  }
+]

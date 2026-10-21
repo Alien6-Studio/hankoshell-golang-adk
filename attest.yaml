@@ -21,6 +21,8 @@ steps:
       - oauth2_test.go
       - organization.go
       - organization_test.go
+      - organization_administration.go
+      - organization_administration_test.go
       - iam.go
       - iam_test.go
       - token.go
