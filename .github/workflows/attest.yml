@@ -1,0 +1,119 @@
+name: Attestation
+on:
+  workflow_dispatch: null
+  workflow_call:
+    outputs:
+      artifact_id:
+        description: Immutable artifact containing the signed receipt and tested package
+        value: ${{ jobs.sign.outputs.artifact_id }}
+permissions:
+  contents: read
+concurrency:
+  group: attestation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  qualify:
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      artifact_id: ${{ steps.candidate.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Install pinned Continuum Attest 0.2.0
+        run: |-
+          curl --fail --silent --show-error --location --retry 2 --max-time 60 https://github.com/Alien6-Studio/continuum-attest/releases/download/v0.2.0/attest-v0.2.0-linux-x86_64.tar.gz -o "$RUNNER_TEMP/attest.tar.gz"
+          printf '%s  %s\n' '88bcf45bf86f629b04fa259f08426f13b30e35ce56f332df3ff794961081a8f7' "$RUNNER_TEMP/attest.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/attest.tar.gz" -C "$RUNNER_TEMP" attest
+          test "$("$RUNNER_TEMP/attest" --version)" = 'attest 0.2.0'
+          "$RUNNER_TEMP/attest" init
+      - name: Qualify the reviewed source without signing credentials
+        run: |-
+          git merge-base --is-ancestor HEAD origin/main
+          mkdir -p artifacts
+          git rev-parse HEAD > artifacts/source-revision.txt
+          "$RUNNER_TEMP/attest" run --pipeline attest.yaml
+          set -- .attest/receipts/*.yaml
+          test "$#" -eq 1
+          "$RUNNER_TEMP/attest" verify "$1" --recompute --check-signatures false --require recompute,success --offline
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        id: candidate
+        with:
+          name: unsigned-attestation
+          path: |-
+            .attest/receipts/*.yaml
+            artifacts/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 3
+  sign:
+    needs: qualify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: attestation
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      artifact_id: ${{ steps.proof.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Install pinned Continuum Attest 0.2.0
+        run: |-
+          curl --fail --silent --show-error --location --retry 2 --max-time 60 https://github.com/Alien6-Studio/continuum-attest/releases/download/v0.2.0/attest-v0.2.0-linux-x86_64.tar.gz -o "$RUNNER_TEMP/attest.tar.gz"
+          printf '%s  %s\n' '88bcf45bf86f629b04fa259f08426f13b30e35ce56f332df3ff794961081a8f7' "$RUNNER_TEMP/attest.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/attest.tar.gz" -C "$RUNNER_TEMP" attest
+          test "$("$RUNNER_TEMP/attest" --version)" = 'attest 0.2.0'
+          "$RUNNER_TEMP/attest" init
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: ${{ needs.qualify.outputs.artifact_id }}
+          path: .
+          merge-multiple: true
+      - name: Recompute the candidate against the exact reviewed commit
+        run: |-
+          test "$(cat artifacts/source-revision.txt)" = "$GITHUB_SHA"
+          git merge-base --is-ancestor HEAD origin/main
+          set -- .attest/receipts/*.yaml
+          test "$#" -eq 1
+          "$RUNNER_TEMP/attest" verify "$1" --recompute --check-signatures false --require recompute,success --offline
+      - name: Sign without executing project code
+        env:
+          ATTEST_SIGNING_KEY: ${{ secrets.ATTEST_SIGNING_KEY }}
+          ATTEST_KEY_ID: ${{ vars.ATTEST_KEY_ID }}
+        run: |-
+          [[ "$ATTEST_KEY_ID" =~ ^[a-f0-9]{32}$ ]]
+          test -n "$ATTEST_SIGNING_KEY"
+          umask 077
+          mkdir -p .attest/keys .attest/trust proof
+          cp .github/attest/trust/* .attest/trust/
+          trap 'rm -f ".attest/keys/$ATTEST_KEY_ID.key"' EXIT
+          printf '%s\n' "$ATTEST_SIGNING_KEY" > ".attest/keys/$ATTEST_KEY_ID.key"
+          unset ATTEST_SIGNING_KEY
+          set -- .attest/receipts/*.yaml
+          test "$#" -eq 1
+          "$RUNNER_TEMP/attest" sign "$1" --key "$ATTEST_KEY_ID" --output proof/receipt.yaml
+      - name: Verify the signed receipt and retain only public evidence
+        run: |-
+          "$RUNNER_TEMP/attest" verify proof/receipt.yaml --recompute --require signature,recompute,success --trust-store .github/attest/trust --offline --format json > proof/verification.json
+          sha256sum artifacts/* > proof/SHA256SUMS
+          cp .github/attest/trust/*.pub proof/
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        id: proof
+        with:
+          name: signed-attestation
+          path: |-
+            proof/
+            artifacts/
+          if-no-files-found: error
+          retention-days: 90
