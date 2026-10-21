@@ -64,3 +64,21 @@ IAM administration belongs to the [operator](https://github.com/Alien6-Studio/ha
 See [contribution](CONTRIBUTING.md) and [security reporting](SECURITY.md).
 
 Copyright 2026 Alien6 Studio. Licensed under Apache-2.0.
+
+## Attestation
+
+The [Attestation workflow](https://github.com/Alien6-Studio/hankoshell-golang-adk/actions/workflows/attest.yml)
+runs the tests and builds a package without signing credentials. A separate job
+recomputes the evidence against the reviewed commit, signs it with Continuum
+Attest 0.2.0 and verifies signature, hashes and successful execution. Releases
+publish that exact package. The public signer is pinned in [.github/attest/trust](.github/attest/trust).
+
+To check a downloaded proof, check out its source revision and restore the
+`signed-attestation` artifact at the repository root, then run:
+
+```sh
+attest verify proof/receipt.yaml --recompute --require signature,recompute,success --trust-store .github/attest/trust --offline
+```
+
+The receipt establishes the recorded checks and package identity. It does not
+claim a hermetic build or an independently trusted timestamp.

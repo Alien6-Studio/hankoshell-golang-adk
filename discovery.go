@@ -102,6 +102,11 @@ func httpClient(options *DiscoveryOptions) *http.Client {
 		base = options.HTTPClient
 	}
 	client := *base
+	transport := client.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+	client.Transport = boundedTransport{transport}
 	if client.Timeout <= 0 {
 		client.Timeout = defaultHTTPTimeout
 	}
@@ -109,4 +114,21 @@ func httpClient(options *DiscoveryOptions) *http.Client {
 		return http.ErrUseLastResponse
 	}
 	return &client
+}
+
+// Third-party JWKS loaders use this transport too, so their response reads
+// obey the same byte limit as discovery and organization requests.
+type boundedTransport struct{ http.RoundTripper }
+
+func (transport boundedTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	response, err := transport.RoundTripper.RoundTrip(request)
+	if err != nil || response == nil || response.Body == nil {
+		return response, err
+	}
+	if response.ContentLength > maxDiscoveryDocumentBytes {
+		_ = response.Body.Close()
+		return nil, fmt.Errorf("hanko HTTP response exceeds its byte limit")
+	}
+	response.Body = http.MaxBytesReader(nil, response.Body, maxDiscoveryDocumentBytes)
+	return response, nil
 }

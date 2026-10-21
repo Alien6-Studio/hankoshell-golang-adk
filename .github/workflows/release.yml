@@ -9,12 +9,13 @@ jobs:
   quality:
     uses: ./.github/workflows/ci.yml
   publish:
-    needs: quality
+    needs: attestation
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     environment: release
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -26,8 +27,19 @@ jobs:
         run: |
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: ${{ needs.attestation.outputs.artifact_id }}
+          path: .
+          merge-multiple: true
       - name: Create the package release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" --verify-tag --title "$RELEASE_TAG" --generate-notes
+        run: gh release create "$RELEASE_TAG" artifacts/*.tar.gz proof/receipt.yaml proof/verification.json proof/SHA256SUMS proof/*.pub --verify-tag --title "$RELEASE_TAG" --generate-notes
+  attestation:
+    needs: quality
+    uses: ./.github/workflows/attest.yml
+    permissions:
+      contents: read
+      actions: read

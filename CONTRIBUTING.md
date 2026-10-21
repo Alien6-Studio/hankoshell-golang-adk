@@ -12,3 +12,5 @@ packaged consumer check for packaging changes.
 Use synthetic identities, endpoints and credentials in examples. Never commit
 cluster configuration, customer data or secrets. Sign commits and include a
 `Signed-off-by` line. Contributions are provided under Apache-2.0.
+
+Keep the declared source inputs in `attest.yaml` current when adding files.

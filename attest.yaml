@@ -1,0 +1,40 @@
+version: "0.1"
+name: hankoshell-golang-adk-qualification
+steps:
+  qualify:
+    run: |-
+      set -eu
+      go version > artifacts/toolchain.txt
+      go vet ./...
+      go test -race -coverprofile=artifacts/coverage.out ./...
+      go build ./...
+      go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+      git archive --format=tar.gz --prefix=hankoshell-golang-adk/ -o artifacts/hankoshell-golang-adk-source.tar.gz HEAD
+    inputs:
+      - access_token.go
+      - access_token_contract_test.go
+      - config.go
+      - config_test.go
+      - discovery.go
+      - doc.go
+      - oauth2.go
+      - oauth2_test.go
+      - organization.go
+      - organization_test.go
+      - verifier.go
+      - verifier_test.go
+      - go.mod
+      - go.sum
+      - testdata/
+      - contracts/
+      - README.md
+      - LICENSE
+      - CONTRIBUTING.md
+      - SECURITY.md
+      - .github/
+      - attest.yaml
+      - artifacts/source-revision.txt
+    outputs:
+      - artifacts/
+    attestation:
+      type: tested-package

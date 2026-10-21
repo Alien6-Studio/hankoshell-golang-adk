@@ -69,6 +69,41 @@ func TestVerifierAcceptsOnlyConfiguredIssuerAudienceAndAlgorithm(t *testing.T) {
 	}
 }
 
+func TestVerifierBoundsJWKSResponsesBeforeThirdPartyDecoding(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, chunked := range []bool{false, true} {
+		t.Run(fmt.Sprintf("chunked=%t", chunked), func(t *testing.T) {
+			var issuer string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/jwks" {
+					writeJSON(t, w, map[string]any{"issuer": issuer, "jwks_uri": issuer + "/jwks"})
+					return
+				}
+				body, _ := json.Marshal(map[string]any{"keys": []any{rsaJWK(&key.PublicKey)}, "padding": strings.Repeat("x", maxDiscoveryDocumentBytes)})
+				if chunked {
+					w.(http.Flusher).Flush()
+				} else {
+					w.Header().Set("Content-Length", fmt.Sprint(len(body)))
+				}
+				_, _ = w.Write(body)
+			}))
+			defer server.Close()
+			issuer = server.URL
+			verifier, err := NewVerifier(context.Background(), ResourceServerConfig{Issuer: issuer, Audience: "example-api"}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			token := signJWT(t, key, "RS256", map[string]any{"iss": issuer, "sub": "fixture", "aud": "example-api", "hanko_token_use": "access", "iat": time.Now().Unix(), "exp": time.Now().Add(time.Minute).Unix()})
+			if _, err := verifier.Verify(context.Background(), token); err == nil {
+				t.Fatal("oversized JWKS accepted")
+			}
+		})
+	}
+}
+
 func TestDiscoveryRejectsIssuerSubstitution(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
 		writeJSON(t, response, map[string]any{

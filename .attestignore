@@ -1,0 +1,6 @@
+.attest/
+.git/
+node_modules/
+dist/
+artifacts/
+coverage/
