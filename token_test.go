@@ -54,7 +54,7 @@ func TestTokenClientBackendAndAgent(t *testing.T) {
 }
 
 func TestTokenClientRejectsInvalidResponses(t *testing.T) {
-	for _, body := range []string{`null`, `{}`, `{"access_token":"token","token_type":"DPoP","expires_in":300}`, `{"access_token":"token","token_type":"Bearer","expires_in":3601}`, `{"access_token":"token","token_type":"Bearer","expires_in":0}`, `{"access_token":"token","token_type":"Bearer","expires_in":1.5}`, `{"access_token":"token","token_type":"Bearer","expires_in":300,"scope":[]}`, `{"access_token":"token","token_type":"Bearer","expires_in":300,"issued_token_type":"id_token"}`} {
+	for _, body := range []string{`null`, `{}`, `{"access_token":"token","token_type":"DPoP","expires_in":300}`, `{"access_token":"token","token_type":"Bearer","expires_in":3601}`, `{"access_token":"token","token_type":"Bearer","expires_in":0}`, `{"access_token":"token","token_type":"Bearer","expires_in":1.5}`, `{"access_token":"token","token_type":"Bearer","expires_in":300,"scope":[]}`, `{"access_token":"token","token_type":"Bearer","expires_in":300,"scope":null}`, `{"access_token":"token","token_type":"Bearer","expires_in":300,"issued_token_type":"id_token"}`} {
 		t.Run(body, func(t *testing.T) {
 			var issuer string
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +67,12 @@ func TestTokenClientRejectsInvalidResponses(t *testing.T) {
 			defer server.Close()
 			issuer = server.URL + "/realms/shared"
 			client, _ := NewTokenClient(ClientConfig{Issuer: issuer, ClientID: "agent", ClientSecret: "synthetic"}, TokenClientOptions{})
-			if _, err := client.ExchangeToken(context.Background(), TokenExchange{SubjectToken: "subject", Audience: "api", Scopes: []string{"read"}}); err == nil {
+			// Validate ordinary responses independently of the exchange-only type check.
+			_, err := client.ClientCredentials(context.Background(), nil)
+			if strings.Contains(body, "id_token") {
+				_, err = client.ExchangeToken(context.Background(), TokenExchange{SubjectToken: "subject", Audience: "api", Scopes: []string{"read"}})
+			}
+			if err == nil {
 				t.Fatal("accepted invalid response")
 			}
 		})

@@ -132,6 +132,14 @@ func (c *TokenClient) request(ctx context.Context, body url.Values, exchange boo
 	if err := json.Unmarshal(data, &token); err != nil {
 		return TokenSet{}, fmt.Errorf("invalid Hanko access-token response")
 	}
+	// encoding/json otherwise accepts JSON null into a string as its zero value.
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return TokenSet{}, fmt.Errorf("invalid Hanko access-token response")
+	}
+	if scope, present := fields["scope"]; present && (len(scope) == 0 || scope[0] != '"') {
+		return TokenSet{}, fmt.Errorf("invalid Hanko access-token response")
+	}
 	if strings.TrimSpace(token.AccessToken) == "" || !strings.EqualFold(token.TokenType, "Bearer") || token.ExpiresIn < 1 || token.ExpiresIn > 3600 || (exchange && token.IssuedTokenType != accessTokenType) {
 		return TokenSet{}, fmt.Errorf("invalid Hanko access-token response")
 	}
