@@ -1,0 +1,30 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+  pull_request: null
+  workflow_dispatch: null
+  workflow_call: null
+permissions:
+  contents: read
+concurrency:
+  group: adk-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  go:
+    name: ADK checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
