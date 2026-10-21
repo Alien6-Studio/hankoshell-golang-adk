@@ -51,6 +51,14 @@ type OrganizationPositionSpec struct {
 	RoleIDs  []string `json:"role_ids"`
 }
 
+// PositionMember is a membership recorded by Hanko, not a product authorization.
+type PositionMember struct {
+	PositionID string `json:"position_id"`
+	Realm      string `json:"realm"`
+	UserID     string `json:"user_id"`
+	AssignedAt string `json:"assigned_at"`
+}
+
 // NewOrganizationClient creates a realm-neutral Hanko organization client.
 func NewOrganizationClient(rawAPIURL string, options OrganizationClientOptions) (*OrganizationClient, error) {
 	apiURL, err := normalizeAPIURL(rawAPIURL)
@@ -97,7 +105,48 @@ func (c *OrganizationClient) DeletePosition(ctx context.Context, realm, position
 	return c.request(ctx, http.MethodDelete, positionPath(realm, positionID), nil, nil, http.StatusNoContent, http.StatusNotFound)
 }
 
+// GetPosition reads one node in the organization hierarchy.
+func (c *OrganizationClient) GetPosition(ctx context.Context, realm, positionID string) (OrganizationPosition, error) {
+	var position OrganizationPosition
+	err := c.request(ctx, http.MethodGet, positionPath(realm, positionID), nil, &position, http.StatusOK)
+	return position, err
+}
+
+// ListMembers reads position memberships. The API checks the caller's authority.
+func (c *OrganizationClient) ListMembers(ctx context.Context, realm, positionID string) ([]PositionMember, error) {
+	var response struct {
+		Members []PositionMember `json:"members"`
+	}
+	err := c.request(ctx, http.MethodGet, positionPath(realm, positionID)+"/members", nil, &response, http.StatusOK)
+	if response.Members == nil {
+		response.Members = []PositionMember{}
+	}
+	return response.Members, err
+}
+
+// AssignMember assigns an existing user to a position.
+func (c *OrganizationClient) AssignMember(ctx context.Context, realm, positionID, userID string) error {
+	if err := validateAPIIdentifier(userID); err != nil {
+		return err
+	}
+	return c.request(ctx, http.MethodPost, positionPath(realm, positionID)+"/members", map[string]string{"user_id": userID}, nil, http.StatusNoContent)
+}
+
+// RemoveMember removes a position membership.
+func (c *OrganizationClient) RemoveMember(ctx context.Context, realm, positionID, userID string) error {
+	return c.request(ctx, http.MethodDelete, positionPath(realm, positionID)+"/members/"+url.PathEscape(userID), nil, nil, http.StatusNoContent)
+}
+
 func (c *OrganizationClient) request(ctx context.Context, method, path string, body, output any, expected ...int) error {
+	for _, part := range strings.Split(strings.TrimPrefix(path, "/"), "/") {
+		value, err := url.PathUnescape(part)
+		if err != nil {
+			return fmt.Errorf("invalid Hanko API path identifier")
+		}
+		if err := validateAPIIdentifier(value); err != nil {
+			return err
+		}
+	}
 	var reader io.Reader
 	if body != nil {
 		encoded, err := json.Marshal(body)
@@ -139,6 +188,18 @@ func (c *OrganizationClient) request(ctx context.Context, method, path string, b
 	}
 	if err := json.Unmarshal(data, output); err != nil {
 		return fmt.Errorf("decode Hanko organization response: %w", err)
+	}
+	return nil
+}
+
+func validateAPIIdentifier(value string) error {
+	if value == "" || strings.TrimSpace(value) != value || value == "." || value == ".." || strings.ContainsAny(value, "/\\") {
+		return fmt.Errorf("invalid Hanko API path identifier")
+	}
+	for _, ch := range value {
+		if ch < 32 || ch == 127 {
+			return fmt.Errorf("invalid Hanko API path identifier")
+		}
 	}
 	return nil
 }

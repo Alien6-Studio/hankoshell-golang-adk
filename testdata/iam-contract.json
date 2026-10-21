@@ -1,0 +1,365 @@
+[
+  {
+    "operation": "listPositions",
+    "args": [
+      "shared"
+    ],
+    "method": "GET",
+    "path": "/api/v1/realms/shared/org/positions",
+    "status": 200,
+    "response": {
+      "positions": [
+        {
+          "id": "engineering",
+          "realm": "shared",
+          "title": "Engineering",
+          "role_ids": [
+            "reader"
+          ]
+        }
+      ]
+    },
+    "result": [
+      {
+        "id": "engineering",
+        "realm": "shared",
+        "title": "Engineering",
+        "role_ids": [
+          "reader"
+        ]
+      }
+    ]
+  },
+  {
+    "operation": "getPosition",
+    "args": [
+      "shared",
+      "engineering"
+    ],
+    "method": "GET",
+    "path": "/api/v1/realms/shared/org/positions/engineering",
+    "status": 200,
+    "response": {
+      "id": "engineering",
+      "realm": "shared",
+      "title": "Engineering",
+      "role_ids": [
+        "reader"
+      ]
+    },
+    "result": {
+      "id": "engineering",
+      "realm": "shared",
+      "title": "Engineering",
+      "role_ids": [
+        "reader"
+      ]
+    }
+  },
+  {
+    "operation": "createPosition",
+    "args": [
+      "shared",
+      {
+        "title": "Engineering",
+        "role_ids": [
+          "reader"
+        ]
+      }
+    ],
+    "method": "POST",
+    "path": "/api/v1/realms/shared/org/positions",
+    "status": 201,
+    "body": {
+      "title": "Engineering",
+      "role_ids": [
+        "reader"
+      ]
+    },
+    "response": {
+      "id": "engineering",
+      "realm": "shared",
+      "title": "Engineering",
+      "role_ids": [
+        "reader"
+      ]
+    },
+    "result": {
+      "id": "engineering",
+      "realm": "shared",
+      "title": "Engineering",
+      "role_ids": [
+        "reader"
+      ]
+    }
+  },
+  {
+    "operation": "updatePosition",
+    "args": [
+      "shared",
+      "engineering",
+      {
+        "title": "Research",
+        "role_ids": []
+      }
+    ],
+    "method": "PATCH",
+    "path": "/api/v1/realms/shared/org/positions/engineering",
+    "status": 204,
+    "body": {
+      "title": "Research",
+      "role_ids": []
+    }
+  },
+  {
+    "operation": "deletePosition",
+    "args": [
+      "shared",
+      "engineering"
+    ],
+    "method": "DELETE",
+    "path": "/api/v1/realms/shared/org/positions/engineering",
+    "status": 204
+  },
+  {
+    "operation": "listMembers",
+    "args": [
+      "shared",
+      "engineering"
+    ],
+    "method": "GET",
+    "path": "/api/v1/realms/shared/org/positions/engineering/members",
+    "status": 200,
+    "response": {
+      "members": [
+        {
+          "position_id": "engineering",
+          "realm": "shared",
+          "user_id": "alice",
+          "assigned_at": "2026-10-21T00:00:00Z"
+        }
+      ]
+    },
+    "result": [
+      {
+        "position_id": "engineering",
+        "realm": "shared",
+        "user_id": "alice",
+        "assigned_at": "2026-10-21T00:00:00Z"
+      }
+    ]
+  },
+  {
+    "operation": "assignMember",
+    "args": [
+      "shared",
+      "engineering",
+      "alice"
+    ],
+    "method": "POST",
+    "path": "/api/v1/realms/shared/org/positions/engineering/members",
+    "status": 204,
+    "body": {
+      "user_id": "alice"
+    }
+  },
+  {
+    "operation": "removeMember",
+    "args": [
+      "shared",
+      "engineering",
+      "alice"
+    ],
+    "method": "DELETE",
+    "path": "/api/v1/realms/shared/org/positions/engineering/members/alice",
+    "status": 204
+  },
+  {
+    "operation": "listUsers",
+    "args": [
+      "shared"
+    ],
+    "method": "GET",
+    "path": "/api/v1/realms/shared/users",
+    "status": 200,
+    "response": {
+      "users": [
+        {
+          "id": "alice",
+          "username": "alice",
+          "email": "alice@example.test",
+          "firstName": "Alice",
+          "lastName": "Example",
+          "enabled": true
+        }
+      ]
+    },
+    "result": [
+      {
+        "id": "alice",
+        "username": "alice",
+        "email": "alice@example.test",
+        "firstName": "Alice",
+        "lastName": "Example",
+        "enabled": true
+      }
+    ]
+  },
+  {
+    "operation": "getUser",
+    "args": [
+      "shared",
+      "alice"
+    ],
+    "method": "GET",
+    "path": "/api/v1/realms/shared/users/alice",
+    "status": 200,
+    "response": {
+      "id": "alice",
+      "username": "alice",
+      "email": "alice@example.test",
+      "firstName": "Alice",
+      "lastName": "Example",
+      "enabled": true
+    },
+    "result": {
+      "id": "alice",
+      "username": "alice",
+      "email": "alice@example.test",
+      "firstName": "Alice",
+      "lastName": "Example",
+      "enabled": true
+    }
+  },
+  {
+    "operation": "listRoles",
+    "args": [
+      "shared"
+    ],
+    "method": "GET",
+    "path": "/api/v1/realms/shared/roles",
+    "status": 200,
+    "response": {
+      "roles": [
+        {
+          "id": "role-reader",
+          "name": "reader",
+          "description": "Read",
+          "composite": false
+        }
+      ]
+    },
+    "result": [
+      {
+        "id": "role-reader",
+        "name": "reader",
+        "description": "Read",
+        "composite": false
+      }
+    ]
+  },
+  {
+    "operation": "createRole",
+    "args": [
+      "shared",
+      {
+        "name": "reader",
+        "description": "Read"
+      }
+    ],
+    "method": "POST",
+    "path": "/api/v1/realms/shared/roles",
+    "status": 201,
+    "body": {
+      "name": "reader",
+      "description": "Read"
+    },
+    "response": {
+      "id": "role-reader",
+      "name": "reader",
+      "description": "Read",
+      "composite": false
+    },
+    "result": {
+      "id": "role-reader",
+      "name": "reader",
+      "description": "Read",
+      "composite": false
+    }
+  },
+  {
+    "operation": "updateRole",
+    "args": [
+      "shared",
+      "reader",
+      {
+        "description": "",
+        "composite": false,
+        "composites": [],
+        "attributes": {}
+      }
+    ],
+    "method": "PATCH",
+    "path": "/api/v1/realms/shared/roles/reader",
+    "status": 204,
+    "body": {
+      "description": "",
+      "composite": false,
+      "composites": [],
+      "attributes": {}
+    }
+  },
+  {
+    "operation": "deleteRole",
+    "args": [
+      "shared",
+      "reader"
+    ],
+    "method": "DELETE",
+    "path": "/api/v1/realms/shared/roles/reader",
+    "status": 204
+  },
+  {
+    "operation": "listUserRoles",
+    "args": [
+      "shared",
+      "alice"
+    ],
+    "method": "GET",
+    "path": "/api/v1/realms/shared/users/alice/roles",
+    "status": 200,
+    "response": {
+      "roles": [
+        "reader"
+      ]
+    },
+    "result": [
+      "reader"
+    ]
+  },
+  {
+    "operation": "assignRole",
+    "args": [
+      "shared",
+      "alice",
+      "reader"
+    ],
+    "method": "POST",
+    "path": "/api/v1/realms/shared/users/alice/roles",
+    "status": 204,
+    "body": {
+      "role": "reader"
+    }
+  },
+  {
+    "operation": "unassignRole",
+    "args": [
+      "shared",
+      "alice",
+      "reader"
+    ],
+    "method": "DELETE",
+    "path": "/api/v1/realms/shared/users/alice/roles/reader",
+    "status": 204
+  }
+]

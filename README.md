@@ -36,7 +36,29 @@ Hanko-issued tokens; product roles and authorization remain your responsibility.
 The `FromEnvironment` variants use the current process environment. Configure `HANKO_ISSUER`, `HANKO_CLIENT_ID`, `HANKO_CLIENT_SECRET` (server-side
 clients only) and `HANKO_AUDIENCE` through your application’s secret mechanism.
 
-## Other adapters
+## IAM and backend clients
+
+HankoShell owns identity and IAM policy across Alien6 products. Keycloak provides
+SSO and the registered client's login theme. Each product uses its own client ID
+and audience; the ADK does not override themes or realm policy.
+
+`NewIAMClient` extends the organization client with directory reads, position
+memberships, realm-role CRUD and direct user-role assignments. Use
+`OrganizationClientOptions.AccessToken` to resolve the caller's current token.
+Hanko authorizes every request. Members and roles currently require realm
+administration: implement organization-scoped delegation server-side before
+exposing these operations in products. Never distribute realm-admin credentials
+to application clients.
+
+`NewTokenClient` supports client credentials and explicit RFC 8693 exchanges
+(`SubjectToken`, `Audience`, `Scopes`, optional `ActorToken`). Resolve rotating
+credentials with `TokenClientOptions.ClientSecret`. These helpers do not establish
+delegation policy. Agent use requires issuer trust, bounded policy and end-to-end
+qualification of the Hanko facade and Keycloak extension. The facade currently
+forwards exchange inputs unchanged; do not assume it can exchange a Hanko re-signed
+subject token. Resource servers independently verify returned access tokens.
+
+## Interactive login
 
 The OAuth helpers implement Authorization Code + PKCE primitives for a CLI.
 The application owns browser initiation, callback handling and token storage.
@@ -59,7 +81,9 @@ must explicitly migrate their imports. Released module versions are immutable.
 The [TypeScript ADK](https://github.com/Alien6-Studio/hankoshell-typescript-adk)
 is maintained separately. Both ADKs carry the same synthetic access-token vectors
 in `testdata/`. The portable manifest is [integration v1](contracts/integration-v1.schema.json).
-IAM administration belongs to the [operator](https://github.com/Alien6-Studio/hankoshell-operator).
+Hanko's API owns administration boundaries; the
+[operator](https://github.com/Alien6-Studio/hankoshell-operator) reconciles
+declarative IAM configuration.
 
 See [contribution](CONTRIBUTING.md) and [security reporting](SECURITY.md).
 
