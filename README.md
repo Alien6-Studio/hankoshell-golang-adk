@@ -42,10 +42,17 @@ HankoShell owns identity and IAM policy across Alien6 products. Keycloak provide
 SSO and the registered client's login theme. Each product uses its own client ID
 and audience; the ADK does not override themes or realm policy.
 
+`NewApplicationOrganizationClient(apiURL, realm, applicationID, options)` uses the
+current user's short-lived session for membership, member lists, role changes,
+and invitation creation, lookup, acceptance and revocation. The API enforces
+product-specific organization and role boundaries on every call. This matches
+the TypeScript ADK's application organization client; use it for application
+account screens without giving the application realm-administration credentials.
+
 `NewIAMClient` extends the organization client with directory reads, position
 memberships, realm-role CRUD and direct user-role assignments. Use
 `OrganizationClientOptions.AccessToken` to resolve the caller's current token.
-Hanko authorizes every request. Members and roles currently require realm
+Hanko authorizes every request. These realm-wide methods require realm
 administration. Product backends use `NewDelegatedOrganizationClient`, bound to
 one realm, application and root position, with a dedicated organization credential
 from the `AccessToken` callback. It lists approved positions and changes membership
