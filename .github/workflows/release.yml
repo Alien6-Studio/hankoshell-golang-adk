@@ -57,8 +57,8 @@ jobs:
     with:
       ref: ${{ inputs.version && format('refs/tags/{0}', inputs.version) || github.ref }}
     secrets:
-      # The sign job reads the protected environment value. No key is passed to qualification.
-      ATTEST_SIGNING_KEY: ""
+      # GitHub requires the named reference; the sign-job environment supplies the value.
+      ATTEST_SIGNING_KEY: ${{ secrets.ATTEST_SIGNING_KEY }}
     permissions:
       contents: read
       actions: read
