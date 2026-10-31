@@ -1,11 +1,20 @@
 # HankoShell Go ADK
 
-Module: `github.com/Alien6-Studio/hankoshell-golang-adk`. Use Go 1.27.3.
-The first public version is being prepared; until then use a reviewed revision.
+OIDC access-token verification, backend IAM clients and PKCE helpers for Go
+applications integrating HankoShell. Your application owns its sessions and
+business authorization.
 
 [![CI](https://github.com/Alien6-Studio/hankoshell-golang-adk/actions/workflows/ci.yml/badge.svg)](https://github.com/Alien6-Studio/hankoshell-golang-adk/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/Alien6-Studio/hankoshell-golang-adk.svg)](https://pkg.go.dev/github.com/Alien6-Studio/hankoshell-golang-adk)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+## Install
+
+Requires Go 1.27.3.
+
+```sh
+go get github.com/Alien6-Studio/hankoshell-golang-adk@v0.1.0
+```
 
 ```go
 import hankoadk "github.com/Alien6-Studio/hankoshell-golang-adk"
@@ -92,7 +101,10 @@ go test -race ./...
 go vet ./...
 ```
 
-Go release tags are `vX.Y.Z`. Existing consumers of the old private module
+Go release tags are `vX.Y.Z`. Install a tagged version through the public Go
+module proxy; API documentation is available on
+[pkg.go.dev](https://pkg.go.dev/github.com/Alien6-Studio/hankoshell-golang-adk).
+Existing consumers of the old private module
 must explicitly migrate their imports. Released module versions are immutable.
 
 The [TypeScript ADK](https://github.com/Alien6-Studio/hankoshell-typescript-adk)
