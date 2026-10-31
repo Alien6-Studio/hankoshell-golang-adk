@@ -126,8 +126,9 @@ recomputes the evidence against the reviewed commit, signs it with Continuum
 Attest 0.2.0 and verifies signature, hashes and successful execution. Releases
 publish that exact package. The public signer is pinned in [.github/attest/trust](.github/attest/trust).
 
-To check a downloaded proof, check out its source revision and restore the
-`signed-attestation` artifact at the repository root, then run:
+To check a downloaded proof, check out its source revision and extract the
+release's `qualification-evidence.tar.gz` at the repository root (or restore the
+`signed-attestation` workflow artifact), then run:
 
 ```sh
 attest verify proof/receipt.yaml --recompute --require signature,recompute,success --trust-store .github/attest/trust --offline

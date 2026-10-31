@@ -1,5 +1,11 @@
 name: Release
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing signed vX.Y.Z tag to publish
+        required: true
+        type: string
   push:
     tags:
       - v*
@@ -8,6 +14,8 @@ permissions:
 jobs:
   quality:
     uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ inputs.version && format('refs/tags/{0}', inputs.version) || github.ref }}
   publish:
     needs: attestation
     runs-on: ubuntu-24.04
@@ -20,26 +28,37 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          ref: ${{ inputs.version && format('refs/tags/{0}', inputs.version) || github.ref }}
           fetch-depth: 0
       - name: Validate the exact package tag and main ancestry
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ inputs.version || github.ref_name }}
         run: |
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
           git merge-base --is-ancestor HEAD origin/main
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           artifact-ids: ${{ needs.attestation.outputs.artifact_id }}
           path: .
           merge-multiple: true
+      - name: Verify the qualified source and delivered files
+        run: |
+          test "$(cat artifacts/source-revision.txt)" = "$(git rev-parse HEAD)"
+          sha256sum --check proof/SHA256SUMS
       - name: Create the package release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" artifacts/*.tar.gz proof/receipt.yaml proof/verification.json proof/SHA256SUMS proof/*.pub --verify-tag --title "$RELEASE_TAG" --notes-from-tag
+          RELEASE_TAG: ${{ inputs.version || github.ref_name }}
+        run: gh release create "$RELEASE_TAG" artifacts/*.tar.gz proof/receipt.yaml proof/verification.json proof/SHA256SUMS proof/*.pub qualification-evidence.tar.gz --verify-tag --title "$RELEASE_TAG" --notes-from-tag
   attestation:
     needs: quality
     uses: ./.github/workflows/attest.yml
+    with:
+      ref: ${{ inputs.version && format('refs/tags/{0}', inputs.version) || github.ref }}
+    secrets:
+      # The sign job reads the protected environment value. No key is passed to qualification.
+      ATTEST_SIGNING_KEY: ""
     permissions:
       contents: read
       actions: read
