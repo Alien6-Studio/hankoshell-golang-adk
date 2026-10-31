@@ -36,7 +36,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" artifacts/*.tar.gz proof/receipt.yaml proof/verification.json proof/SHA256SUMS proof/*.pub --verify-tag --title "$RELEASE_TAG" --generate-notes
+        run: gh release create "$RELEASE_TAG" artifacts/*.tar.gz proof/receipt.yaml proof/verification.json proof/SHA256SUMS proof/*.pub --verify-tag --title "$RELEASE_TAG" --notes-from-tag
   attestation:
     needs: quality
     uses: ./.github/workflows/attest.yml
