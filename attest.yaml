@@ -13,12 +13,16 @@ steps:
     inputs:
       - access_token.go
       - access_token_contract_test.go
+      - application_organization.go
+      - application_organization_test.go
       - config.go
       - config_test.go
       - discovery.go
       - doc.go
       - oauth2.go
       - oauth2_test.go
+      - oauth2_session.go
+      - oauth2_session_test.go
       - organization.go
       - organization_test.go
       - organization_administration.go

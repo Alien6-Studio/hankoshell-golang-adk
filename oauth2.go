@@ -88,10 +88,22 @@ func NewOAuth2Config(
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  authorizationEndpoint,
 			TokenURL: tokenEndpoint,
+			// Hanko accepts client credentials in the form, as its TypeScript ADK
+			// does. AutoDetect retries any failed exchange with a different style,
+			// which can replay a consumed refresh token after an ambiguous failure.
+			AuthStyle: oauth2.AuthStyleInParams,
 		},
 		RedirectURL: normalizedRedirectURL,
 		Scopes:      append([]string(nil), scopes...),
 	}, nil
+}
+
+// WithOAuth2HTTPClient binds the ADK's bounded, no-redirect HTTP client to later
+// oauth2.Config.Exchange, TokenSource and Client calls. Discovery options alone
+// do not change x/oauth2's transport. Use an application/session-lifetime context
+// for a reusable TokenSource, not a context canceled when its first request ends.
+func WithOAuth2HTTPClient(ctx context.Context, options *DiscoveryOptions) context.Context {
+	return context.WithValue(ctx, oauth2.HTTPClient, httpClient(options))
 }
 
 func normalizeRedirectURL(rawRedirectURL string) (string, error) {
