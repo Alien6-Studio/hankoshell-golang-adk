@@ -21,7 +21,7 @@ type PostgresSessionStore struct{ DB *sql.DB }
 func (s *PostgresSessionStore) Create(ctx context.Context, scope string, value StoredSession) (bool, error) {
 	r, err := s.DB.ExecContext(ctx, "INSERT INTO hanko_sessions (scope,id,revision,expires_at,lease_until,sealed) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING", scope, value.ID, value.Revision, value.ExpiresAt, value.LeaseUntil, value.Sealed)
 	if err != nil {
-		return false, &SessionError{SessionUnavailable}
+		return false, &SessionError{Category: SessionUnavailable}
 	}
 	count, err := r.RowsAffected()
 	return count == 1, err
@@ -33,14 +33,14 @@ func (s *PostgresSessionStore) Read(ctx context.Context, scope, id string) (*Sto
 		return nil, nil
 	}
 	if err != nil {
-		return nil, &SessionError{SessionUnavailable}
+		return nil, &SessionError{Category: SessionUnavailable}
 	}
 	return &value, nil
 }
 func (s *PostgresSessionStore) Replace(ctx context.Context, scope, revision string, value StoredSession) (bool, error) {
 	r, err := s.DB.ExecContext(ctx, "UPDATE hanko_sessions SET revision=$4,expires_at=$5,lease_until=$6,sealed=$7 WHERE scope=$1 AND id=$2 AND revision=$3", scope, value.ID, revision, value.Revision, value.ExpiresAt, value.LeaseUntil, value.Sealed)
 	if err != nil {
-		return false, &SessionError{SessionUnavailable}
+		return false, &SessionError{Category: SessionUnavailable}
 	}
 	count, err := r.RowsAffected()
 	return count == 1, err
@@ -48,7 +48,7 @@ func (s *PostgresSessionStore) Replace(ctx context.Context, scope, revision stri
 func (s *PostgresSessionStore) Remove(ctx context.Context, scope, id string) error {
 	_, err := s.DB.ExecContext(ctx, "DELETE FROM hanko_sessions WHERE scope=$1 AND id=$2", scope, id)
 	if err != nil {
-		return &SessionError{SessionUnavailable}
+		return &SessionError{Category: SessionUnavailable}
 	}
 	return nil
 }

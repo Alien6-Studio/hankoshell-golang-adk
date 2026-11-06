@@ -57,7 +57,8 @@ const (
 
 // SessionError never wraps credential-bearing provider or database errors.
 type SessionError struct {
-	Category SessionFailure `json:"category"`
+	Category       SessionFailure        `json:"category"`
+	RefreshFailure *OAuth2RefreshFailure `json:"refresh_failure,omitempty"`
 }
 
 func (e *SessionError) Error() string { return fmt.Sprintf("Hanko session failed (%s)", e.Category) }
@@ -163,12 +164,12 @@ func (m *SessionManager) open(row StoredSession) (sessionEnvelope, error) {
 	var value sessionEnvelope
 	data, err := base64.RawURLEncoding.DecodeString(row.Sealed)
 	if err != nil || len(data) < 28 || len(data) > 256_000 {
-		return value, &SessionError{SessionUnavailable}
+		return value, &SessionError{Category: SessionUnavailable}
 	}
 	sealed := append(append([]byte(nil), data[28:]...), data[12:28]...)
 	plain, err := m.cipher.Open(nil, data[:12], sealed, []byte(m.scope+":"+row.ID))
 	if err != nil || json.Unmarshal(plain, &value) != nil || value.Subject == "" || !validSessionTokens(value.Tokens) {
-		return value, &SessionError{SessionUnavailable}
+		return value, &SessionError{Category: SessionUnavailable}
 	}
 	return value, nil
 }
@@ -177,11 +178,11 @@ func validSessionTokens(tokens SessionTokens) bool {
 }
 func (m *SessionManager) verified(ctx context.Context, tokens SessionTokens, subject string) (*Principal, error) {
 	if !validSessionTokens(tokens) || tokens.ExpiresAt <= m.options.Now().Unix() {
-		return nil, &SessionError{SessionInvalidToken}
+		return nil, &SessionError{Category: SessionInvalidToken}
 	}
 	p, err := m.options.Verify(ctx, tokens.AccessToken)
 	if err != nil || p == nil || p.Issuer != m.options.Client.Issuer || p.Subject == "" || !slices.Contains(p.Audiences, m.options.Audience) || (subject != "" && p.Subject != subject) {
-		return nil, &SessionError{SessionInvalidToken}
+		return nil, &SessionError{Category: SessionInvalidToken}
 	}
 	return p, nil
 }
@@ -196,7 +197,7 @@ func (m *SessionManager) Create(ctx context.Context, tokens SessionTokens) (*Ses
 	row.Sealed = m.seal(row.ID, sessionEnvelope{tokens, p.Subject})
 	ok, err := m.options.Store.Create(ctx, m.scope, row)
 	if err != nil || !ok {
-		return nil, &SessionError{SessionUnavailable}
+		return nil, &SessionError{Category: SessionUnavailable}
 	}
 	return &Session{row.ID, time.UnixMilli(row.ExpiresAt), tokens, p}, nil
 }
@@ -207,7 +208,7 @@ func (m *SessionManager) Revoke(ctx context.Context, id string) error {
 		return nil
 	}
 	if m.options.Store.Remove(ctx, m.scope, id) != nil {
-		return &SessionError{SessionUnavailable}
+		return &SessionError{Category: SessionUnavailable}
 	}
 	return nil
 }
@@ -216,19 +217,19 @@ func (m *SessionManager) Revoke(ctx context.Context, id string) error {
 // is never replaced by another consuming exchange, even after its lease expires.
 func (m *SessionManager) Read(ctx context.Context, id string) (*Session, error) {
 	if !sessionIdentifier.MatchString(id) {
-		return nil, &SessionError{SessionExpired}
+		return nil, &SessionError{Category: SessionExpired}
 	}
 	deadline := time.Now().Add(m.options.Wait)
 	for time.Now().Before(deadline) {
 		row, err := m.options.Store.Read(ctx, m.scope, id)
 		if err != nil {
-			return nil, &SessionError{SessionUnavailable}
+			return nil, &SessionError{Category: SessionUnavailable}
 		}
 		if row == nil || row.ExpiresAt <= m.options.Now().UnixMilli() {
 			if err := m.Revoke(ctx, id); err != nil {
 				return nil, err
 			}
-			return nil, &SessionError{SessionExpired}
+			return nil, &SessionError{Category: SessionExpired}
 		}
 		envelope, err := m.open(*row)
 		if err != nil {
@@ -239,11 +240,11 @@ func (m *SessionManager) Read(ctx context.Context, id string) (*Session, error) 
 				if err := m.Revoke(ctx, id); err != nil {
 					return nil, err
 				}
-				return nil, &SessionError{SessionRefreshUnknown}
+				return nil, &SessionError{Category: SessionRefreshUnknown}
 			}
 			select {
 			case <-ctx.Done():
-				return nil, &SessionError{SessionUnavailable}
+				return nil, &SessionError{Category: SessionUnavailable}
 			case <-time.After(20 * time.Millisecond):
 			}
 			continue
@@ -260,7 +261,7 @@ func (m *SessionManager) Read(ctx context.Context, id string) (*Session, error) 
 		claimed.LeaseUntil = m.options.Now().Add(m.options.Lease).UnixMilli()
 		ok, err := m.options.Store.Replace(ctx, m.scope, row.Revision, claimed)
 		if err != nil {
-			return nil, &SessionError{SessionUnavailable}
+			return nil, &SessionError{Category: SessionUnavailable}
 		}
 		if !ok {
 			continue
@@ -284,9 +285,14 @@ func (m *SessionManager) Read(ctx context.Context, id string) (*Session, error) 
 			}
 			var oauthFailure *OAuth2RefreshFailure
 			if errors.As(refreshErr, &oauthFailure) {
-				return nil, &SessionError{SessionRefreshRejected}
+				safe := ClassifyOAuth2RefreshError(refreshErr)
+				category := SessionRefreshRejected
+				if safe.Category == OAuth2RefreshOutcomeUnknown || safe.Category == OAuth2RefreshProviderUnavailable {
+					category = SessionRefreshUnknown
+				}
+				return nil, &SessionError{Category: category, RefreshFailure: safe}
 			}
-			return nil, &SessionError{SessionRefreshUnknown}
+			return nil, &SessionError{Category: SessionRefreshUnknown}
 		}
 		next := *row
 		next.Revision = sessionRandom()
@@ -294,18 +300,18 @@ func (m *SessionManager) Read(ctx context.Context, id string) (*Session, error) 
 		next.Sealed = m.seal(id, sessionEnvelope{tokens, envelope.Subject})
 		if claimed.LeaseUntil <= m.options.Now().UnixMilli() || row.ExpiresAt <= m.options.Now().UnixMilli() {
 			_ = m.Revoke(context.WithoutCancel(ctx), id)
-			return nil, &SessionError{SessionExpired}
+			return nil, &SessionError{Category: SessionExpired}
 		}
 		ok, err = m.options.Store.Replace(ctx, m.scope, claimed.Revision, next)
 		if err != nil {
-			return nil, &SessionError{SessionUnavailable}
+			return nil, &SessionError{Category: SessionUnavailable}
 		}
 		if !ok {
-			return nil, &SessionError{SessionExpired}
+			return nil, &SessionError{Category: SessionExpired}
 		}
 		return &Session{id, time.UnixMilli(row.ExpiresAt), tokens, p}, nil
 	}
-	return nil, &SessionError{SessionUnavailable}
+	return nil, &SessionError{Category: SessionUnavailable}
 }
 
 // OAuth2SessionRefresher adapts an existing discovered OAuth config. The shared

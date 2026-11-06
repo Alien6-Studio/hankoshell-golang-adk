@@ -197,3 +197,18 @@ func TestSharedSessionCrashAndIsolation(t *testing.T) {
 		t.Fatal("crashed owner was replaced")
 	}
 }
+
+func TestSharedSessionPreservesSafeRefreshDiagnostics(t *testing.T) {
+	options, clock, _ := sessionTestOptions()
+	options.Refresh = func(context.Context, SessionTokens) (SessionTokens, error) {
+		return SessionTokens{}, &OAuth2RefreshFailure{Category: OAuth2RefreshProviderUnavailable, HTTPStatus: 503}
+	}
+	m := newSessionManager(t, options)
+	session := createTestSession(t, m)
+	clock.Store(1990)
+	_, err := m.Read(context.Background(), session.ID)
+	var failure *SessionError
+	if !errors.As(err, &failure) || failure.Category != SessionRefreshUnknown || failure.RefreshFailure == nil || failure.RefreshFailure.Category != OAuth2RefreshProviderUnavailable || failure.RefreshFailure.HTTPStatus != 503 {
+		t.Fatal("safe renewal diagnostic was lost")
+	}
+}

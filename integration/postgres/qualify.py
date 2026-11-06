@@ -26,7 +26,8 @@ try:
         port = ports["5432/tcp"][0]["HostPort"]
         url = f"postgres://postgres:{password}@127.0.0.1:{port}/hanko_sessions"
         deadline = time.monotonic() + 30
-        while subprocess.run(["docker", "exec", name, "pg_isready", "-U", "postgres"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
+        # Ignore the entrypoint's temporary Unix-socket-only initialization server.
+        while subprocess.run(["docker", "exec", name, "pg_isready", "-h", "127.0.0.1", "-U", "postgres"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode:
             if time.monotonic() >= deadline:
                 raise RuntimeError("Disposable PostgreSQL did not become ready")
             time.sleep(0.1)
