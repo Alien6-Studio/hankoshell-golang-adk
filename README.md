@@ -1,8 +1,8 @@
 # HankoShell Go ADK
 
 OIDC access-token verification, backend IAM clients and PKCE helpers for Go
-applications integrating HankoShell. Your application owns its sessions and
-business authorization.
+applications integrating HankoShell. Shared encrypted sessions and HTTP helpers
+cover the session lifecycle; your application owns business authorization.
 
 [![CI](https://github.com/Alien6-Studio/hankoshell-golang-adk/actions/workflows/ci.yml/badge.svg)](https://github.com/Alien6-Studio/hankoshell-golang-adk/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/Alien6-Studio/hankoshell-golang-adk.svg)](https://pkg.go.dev/github.com/Alien6-Studio/hankoshell-golang-adk)
@@ -13,7 +13,7 @@ business authorization.
 Requires Go 1.27.3.
 
 ```sh
-go get github.com/Alien6-Studio/hankoshell-golang-adk@v0.1.1
+go get github.com/Alien6-Studio/hankoshell-golang-adk@v0.2.0
 ```
 
 ```go
@@ -40,6 +40,55 @@ if err != nil {
 Import the module as `hankoadk`. The verifier checks RS256 signatures, exact
 issuer and audience, access-token class, subject, issuance and expiry. It uses
 Hanko-issued tokens; product roles and authorization remain your responsibility.
+
+For an HTTP API, wrap your existing handler without copying token parsing:
+
+```go
+protected := hankoadk.BearerMiddleware(verifier.Verify, func(ctx context.Context, p *hankoadk.Principal) error {
+    _, err := hankoadk.RequireApplicationAccess(p, "example-api", "staff", "admin")
+    return err
+})(handler)
+```
+
+Role requirements use any-of semantics. Only the target application's roles
+qualify; realm administrator roles cannot substitute. Wrong audiences, malformed
+or ambiguous organizations and missing application roles return safe, distinct
+403 categories. `PrincipalFromContext` reads the verified principal in the handler.
+Business identity binding uses issuer and subject and remains application-owned.
+
+## Shared application sessions
+
+```go
+sessions, err := hankoadk.NewSessionManager(hankoadk.SessionManagerOptions{
+    Client: clientConfig, Audience: "example-api", Secret: applicationSessionSecret,
+    Store: &hankoadk.PostgresSessionStore{DB: db},
+    Verify: verifier.Verify, Refresh: hankoadk.OAuth2SessionRefresher(oauthConfig),
+})
+```
+
+Apply `PostgresSessionSchema` using the application's migration procedure. All
+replicas share the database and an application secret of at least 32 bytes. The
+runtime database identity needs CRUD rights on this table only; use your existing
+`database/sql` PostgreSQL driver. No schema mutation occurs at request time.
+
+After the existing OIDC callback has validated state, nonce, redirect and PKCE,
+call `sessions.Create(ctx, tokens)`. Store only its random ID in a host-owned
+Secure, HttpOnly, SameSite cookie. `sessions.Read` verifies access and coordinates
+renewal across processes; `sessions.Revoke` fences late completion during logout.
+Refresh tokens and logout hints stay encrypted in the database. Retain exact
+Origin/CSRF checks on state-changing login/logout routes and never log token data.
+An uncertain refresh requires explicit reauthentication and cannot be replayed.
+Use a same-origin 503/retry state when storage is unavailable, rather than an
+automatic sign-in loop. Await revocation before confirming sign-out. Schedule
+expired-row deletion using the indexed `expires_at` Unix-millisecond column.
+
+`RequireApplicationAccessForClient` additionally accepts an explicit sign-in
+client binding for a platform-issued active-organization context when the API
+audience differs from that client. See the [0.2.0 milestone](docs/releases/0.2.0.md).
+`Memberships` lists approved choices and `SelectMembership` selects one using the
+original login token; a context token never grants new membership. Run
+`python3 integration/postgres/qualify.py` to qualify shared storage using a
+disposable local Docker database and synthetic identities.
 
 `LoadClientConfig` and `LoadResourceServerConfig` accept an environment lookup.
 The `FromEnvironment` variants use the current process environment. Configure `HANKO_ISSUER`, `HANKO_CLIENT_ID`, `HANKO_CLIENT_SECRET` (server-side

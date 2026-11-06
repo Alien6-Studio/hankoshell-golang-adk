@@ -11,6 +11,45 @@ import (
 	"testing"
 )
 
+func TestApplicationOrganizationSelectionContract(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer original-session" {
+			t.Error("original user session missing")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if strings.HasSuffix(r.URL.Path, "/memberships") && r.Method == http.MethodGet {
+			_, _ = w.Write([]byte(`{"memberships":[{"subject":"alice","organization":"org","role":"reader","administrator":false}]}`))
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/membership") && r.Method == http.MethodPost {
+			var input map[string]string
+			_ = json.NewDecoder(r.Body).Decode(&input)
+			if input["organization"] != "org" || len(input) != 1 {
+				t.Error("selection body mismatch")
+			}
+			_, _ = w.Write([]byte(`{"membership":{"subject":"alice","organization":"org","role":"reader","administrator":false},"access_token":"bounded-context","token_type":"Bearer","expires_in":300}`))
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+	client, err := NewApplicationOrganizationClient(server.URL, "example", "web", OrganizationClientOptions{AccessToken: func(context.Context) (string, error) { return "original-session", nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	choices, err := client.Memberships(context.Background())
+	if err != nil || len(choices) != 1 || choices[0].Organization != "org" {
+		t.Fatal("approved choices unavailable")
+	}
+	selection, err := client.SelectMembership(context.Background(), "org")
+	if err != nil || selection.AccessToken != "bounded-context" || selection.TokenType != "Bearer" {
+		t.Fatal("context selection unavailable")
+	}
+	if _, err := client.SelectMembership(context.Background(), "../foreign"); err == nil {
+		t.Fatal("ambiguous organization accepted")
+	}
+}
+
 func TestApplicationOrganizationUserSessionContract(t *testing.T) {
 	const base = "/api/v1/application-organizations/realms/example/applications/product-api"
 	type exchange struct{ method, path, body string }
