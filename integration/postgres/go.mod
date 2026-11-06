@@ -5,7 +5,7 @@ go 1.27.0
 toolchain go1.27.3
 
 require (
-	github.com/Alien6-Studio/hankoshell-golang-adk v0.2.0
+	github.com/Alien6-Studio/hankoshell-golang-adk v0.7.1
 	github.com/jackc/pgx/v5 v5.12.0
 )
 
