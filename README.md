@@ -4,6 +4,9 @@ OIDC access-token verification, backend IAM clients and PKCE helpers for Go
 applications integrating HankoShell. Shared encrypted sessions and HTTP helpers
 cover the session lifecycle; your application owns business authorization.
 
+Go and TypeScript share a version for each qualified integration delivery. See the
+[coordinated version policy](docs/versioning.md).
+
 [![CI](https://github.com/Alien6-Studio/hankoshell-golang-adk/actions/workflows/ci.yml/badge.svg)](https://github.com/Alien6-Studio/hankoshell-golang-adk/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/Alien6-Studio/hankoshell-golang-adk.svg)](https://pkg.go.dev/github.com/Alien6-Studio/hankoshell-golang-adk)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
@@ -13,7 +16,7 @@ cover the session lifecycle; your application owns business authorization.
 Requires Go 1.27.3.
 
 ```sh
-go get github.com/Alien6-Studio/hankoshell-golang-adk@v0.2.0
+go get github.com/Alien6-Studio/hankoshell-golang-adk@v0.7.1
 ```
 
 ```go
@@ -84,7 +87,7 @@ expired-row deletion using the indexed `expires_at` Unix-millisecond column.
 
 `RequireApplicationAccessForClient` additionally accepts an explicit sign-in
 client binding for a platform-issued active-organization context when the API
-audience differs from that client. See the [0.2.0 milestone](docs/releases/0.2.0.md).
+audience differs from that client. See the [0.7.1 milestone](docs/releases/0.7.1.md).
 `Memberships` lists approved choices and `SelectMembership` selects one using the
 original login token; a context token never grants new membership. Run
 `python3 integration/postgres/qualify.py` to qualify shared storage using a
