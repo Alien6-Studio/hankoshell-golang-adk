@@ -7,6 +7,7 @@ steps:
       go version > artifacts/toolchain.txt
       go vet ./...
       go test -race -coverprofile=artifacts/coverage.out ./...
+      python3 integration/postgres/qualify.py
       go build ./...
       go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
       git archive --format=tar.gz --prefix=hankoshell-golang-adk/ -o artifacts/hankoshell-golang-adk-source.tar.gz HEAD
@@ -15,6 +16,12 @@ steps:
       - access_token_contract_test.go
       - application_organization.go
       - application_organization_test.go
+      - application_access.go
+      - application_access_test.go
+      - http_auth.go
+      - sessions.go
+      - sessions_test.go
+      - sessions_postgres.go
       - config.go
       - config_test.go
       - discovery.go
@@ -38,6 +45,8 @@ steps:
       - testdata/
       - contracts/
       - README.md
+      - docs/
+      - integration/
       - LICENSE
       - CONTRIBUTING.md
       - SECURITY.md

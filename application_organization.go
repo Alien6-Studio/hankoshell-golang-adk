@@ -18,6 +18,22 @@ type ApplicationMembership struct {
 	Administrator bool   `json:"administrator"`
 }
 
+// ApplicationContextSelection is a bounded active-organization access token.
+// Retain the original login token server-side for later selections.
+type ApplicationContextSelection struct {
+	Membership ApplicationMembership `json:"membership"`
+	Context    struct {
+		ApplicationMembership
+		Root          string   `json:"root"`
+		NodePath      []string `json:"node_path"`
+		Roles         []string `json:"roles"`
+		PolicyVersion int64    `json:"policy_version"`
+	} `json:"context"`
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+	ExpiresIn   int64  `json:"expires_in"`
+}
+
 type ApplicationMember struct {
 	ID         string `json:"id"`
 	Name       string `json:"name"`
@@ -83,6 +99,25 @@ func NewApplicationOrganizationClient(apiURL, realm, applicationID string, optio
 func (c *ApplicationOrganizationClient) Membership(ctx context.Context) (ApplicationMembership, error) {
 	var response ApplicationMembership
 	err := c.client.request(ctx, http.MethodGet, c.path+"/membership", nil, &response, http.StatusOK)
+	return response, err
+}
+
+// Memberships lists server-approved choices for the current user session.
+func (c *ApplicationOrganizationClient) Memberships(ctx context.Context) ([]ApplicationMembership, error) {
+	var response struct {
+		Memberships []ApplicationMembership `json:"memberships"`
+	}
+	err := c.client.request(ctx, http.MethodGet, c.path+"/memberships", nil, &response, http.StatusOK)
+	return response.Memberships, err
+}
+
+// SelectMembership selects an existing authorized context without granting membership.
+func (c *ApplicationOrganizationClient) SelectMembership(ctx context.Context, organization string) (ApplicationContextSelection, error) {
+	var response ApplicationContextSelection
+	if err := validateApplicationIdentifiers(organization); err != nil {
+		return response, err
+	}
+	err := c.client.request(ctx, http.MethodPost, c.path+"/membership", map[string]string{"organization": organization}, &response, http.StatusOK)
 	return response, err
 }
 
