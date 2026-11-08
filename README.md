@@ -16,7 +16,7 @@ Go and TypeScript share a version for each qualified integration delivery. See t
 Requires Go 1.27.3.
 
 ```sh
-go get github.com/Alien6-Studio/hankoshell-golang-adk@v0.7.1
+go get github.com/Alien6-Studio/hankoshell-golang-adk@v0.7.2
 ```
 
 ```go
@@ -127,6 +127,15 @@ requires an administrator session, an explicit role allowlist and an expiry of
 5 minutes to 24 hours. Keep the returned secret server-side; it cannot call ordinary
 realm-administration endpoints. This requires the matching platform API and does
 not enable interactive active-node selection or agent delegation.
+
+`NewApplicationSecretClient` lets a product backend rotate the secret of its own
+confidential applications from its dashboard. Bind the realm and the client ID
+allowlist at construction; other applications are refused before any request.
+`GetApplication` returns metadata without a secret, and `RotateSecret` returns the
+client ID, the new secret and its rotation time once. The previous secret stops
+working. Show the value to the operator once and never log it. The platform API
+currently requires realm administration for this route, so keep the credential on
+the backend and limit who can reach the rotation action.
 
 `NewTokenClient` supports client credentials and explicit RFC 8693 exchanges
 (`SubjectToken`, `Audience`, `Scopes`, optional `ActorToken`). Resolve rotating
