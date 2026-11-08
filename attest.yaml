@@ -18,6 +18,8 @@ steps:
       - application_organization_test.go
       - application_access.go
       - application_access_test.go
+      - application_secret.go
+      - application_secret_test.go
       - http_auth.go
       - sessions.go
       - sessions_test.go
